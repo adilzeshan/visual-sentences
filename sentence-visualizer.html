@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentence Length Visualizer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f0f13;
+      color: #e8e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.3px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 160px;
+      padding: 16px;
+      background: #1a1a24;
+      border: 1px solid #2e2e42;
+      border-radius: 10px;
+      color: #e8e8f0;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: #5b5bd6; }
+    textarea::placeholder { color: #444; }
+
+    .stats {
+      display: flex;
+      gap: 16px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      background: #1a1a24;
+      border: 1px solid #2e2e42;
+      border-radius: 8px;
+      padding: 12px 18px;
+      flex: 1;
+      min-width: 110px;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .chart-section {
+      margin-top: 28px;
+    }
+
+    .chart-title {
+      font-size: 0.8rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 14px;
+    }
+
+    .bars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .bar-num {
+      font-size: 0.72rem;
+      color: #555;
+      width: 22px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .bar-track {
+      flex: 1;
+      height: 28px;
+      background: #1a1a24;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      padding-left: 10px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .bar-label {
+      color: rgba(255,255,255,0.85);
+      pointer-events: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: calc(100% - 8px);
+    }
+
+    .bar-count {
+      font-size: 0.72rem;
+      color: #555;
+      width: 36px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .tooltip {
+      position: fixed;
+      background: #252535;
+      border: 1px solid #3a3a55;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      pointer-events: none;
+      display: none;
+      z-index: 10;
+      max-width: 320px;
+      line-height: 1.5;
+      color: #ccc;
+    }
+
+    .tooltip strong { color: #fff; }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.78rem;
+      color: #888;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .highlighted-text {
+      margin-top: 28px;
+    }
+
+    .highlighted-text .chart-title {
+      margin-bottom: 12px;
+    }
+
+    .text-output {
+      background: #1a1a24;
+      border: 1px solid #2e2e42;
+      border-radius: 10px;
+      padding: 18px;
+      font-size: 0.92rem;
+      line-height: 1.75;
+      min-height: 60px;
+    }
+
+    .sentence-chip {
+      border-radius: 3px;
+      padding: 1px 2px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .sentence-chip:hover { opacity: 0.75; }
+
+    .empty-state {
+      text-align: center;
+      color: #444;
+      font-size: 0.88rem;
+      padding: 30px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Sentence Length Visualizer</h1>
+    <p class="subtitle">Paste or type text below to see how your sentences vary in length.</p>
+
+    <textarea id="input" placeholder="Type or paste your text here…"></textarea>
+
+    <div class="stats" id="stats">
+      <div class="stat"><div class="stat-label">Sentences</div><div class="stat-value" id="s-count">—</div></div>
+      <div class="stat"><div class="stat-label">Avg words</div><div class="stat-value" id="s-avg">—</div></div>
+      <div class="stat"><div class="stat-label">Shortest</div><div class="stat-value" id="s-min">—</div></div>
+      <div class="stat"><div class="stat-label">Longest</div><div class="stat-value" id="s-max">—</div></div>
+    </div>
+
+    <div class="chart-section" id="chart-section">
+      <div class="chart-title">Words per sentence</div>
+      <div class="bars" id="bars">
+        <div class="empty-state">Start typing to see your sentences here.</div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Short (1–10 words)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Medium (11–20 words)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ec4899"></div>Long (21–35 words)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Very long (35+ words)</div>
+      </div>
+    </div>
+
+    <div class="highlighted-text" id="highlight-section">
+      <div class="chart-title">Text with sentence highlights</div>
+      <div class="text-output" id="text-output">
+        <span class="empty-state">Your highlighted text will appear here.</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    const input = document.getElementById('input');
+    const barsEl = document.getElementById('bars');
+    const textOutput = document.getElementById('text-output');
+    const tooltip = document.getElementById('tooltip');
+
+    function tokenize(text) {
+      // Split on sentence-ending punctuation, keep the punctuation with the sentence
+      const raw = text.match(/[^.!?]+[.!?]*/g) || [];
+      return raw
+        .map(s => s.trim())
+        .filter(s => s.length > 1 && /\w/.test(s));
+    }
+
+    function wordCount(s) {
+      return s.trim().split(/\s+/).filter(Boolean).length;
+    }
+
+    function getColor(words) {
+      if (words <= 10)  return { bg: '#1e3a5f', bar: '#3b82f6' };
+      if (words <= 20)  return { bg: '#2d1f5e', bar: '#8b5cf6' };
+      if (words <= 35)  return { bg: '#4a1040', bar: '#ec4899' };
+      return              { bg: '#4a1010', bar: '#ef4444' };
+    }
+
+    function setStatText(id, val) {
+      document.getElementById(id).textContent = val;
+    }
+
+    function update() {
+      const text = input.value;
+      const sentences = tokenize(text);
+
+      if (!sentences.length) {
+        barsEl.innerHTML = '<div class="empty-state">Start typing to see your sentences here.</div>';
+        textOutput.innerHTML = '<span class="empty-state">Your highlighted text will appear here.</span>';
+        ['s-count','s-avg','s-min','s-max'].forEach(id => setStatText(id, '—'));
+        return;
+      }
+
+      const counts = sentences.map(wordCount);
+      const total = counts.reduce((a, b) => a + b, 0);
+      const avg = (total / counts.length).toFixed(1);
+      const min = Math.min(...counts);
+      const max = Math.max(...counts);
+
+      setStatText('s-count', sentences.length);
+      setStatText('s-avg', avg);
+      setStatText('s-min', min + ' w');
+      setStatText('s-max', max + ' w');
+
+      // Bars
+      const maxCount = max || 1;
+      barsEl.innerHTML = '';
+      sentences.forEach((s, i) => {
+        const wc = counts[i];
+        const pct = Math.max(4, (wc / maxCount) * 100);
+        const { bg, bar } = getColor(wc);
+
+        const row = document.createElement('div');
+        row.className = 'bar-row';
+
+        const num = document.createElement('div');
+        num.className = 'bar-num';
+        num.textContent = i + 1;
+
+        const track = document.createElement('div');
+        track.className = 'bar-track';
+        track.style.background = bg;
+
+        const fill = document.createElement('div');
+        fill.className = 'bar-fill';
+        fill.style.background = bar;
+        fill.style.width = '0%';
+
+        const label = document.createElement('span');
+        label.className = 'bar-label';
+        label.textContent = s;
+
+        fill.appendChild(label);
+        track.appendChild(fill);
+
+        const countEl = document.createElement('div');
+        countEl.className = 'bar-count';
+        countEl.textContent = wc + ' w';
+
+        row.appendChild(num);
+        row.appendChild(track);
+        row.appendChild(countEl);
+        barsEl.appendChild(row);
+
+        requestAnimationFrame(() => { fill.style.width = pct + '%'; });
+
+        track.addEventListener('mousemove', (e) => {
+          tooltip.style.display = 'block';
+          tooltip.innerHTML = `<strong>Sentence ${i + 1}</strong><br>${s}<br><br><strong>${wc} words</strong>`;
+          tooltip.style.left = (e.clientX + 14) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+        });
+        track.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+      });
+
+      // Highlighted text output
+      textOutput.innerHTML = '';
+      sentences.forEach((s, i) => {
+        const { bar } = getColor(counts[i]);
+        const chip = document.createElement('span');
+        chip.className = 'sentence-chip';
+        chip.textContent = s + ' ';
+        chip.style.background = bar + '28';
+        chip.style.outline = `1px solid ${bar}55`;
+
+        chip.addEventListener('mousemove', (e) => {
+          tooltip.style.display = 'block';
+          tooltip.innerHTML = `<strong>Sentence ${i + 1}</strong> — <strong>${counts[i]} words</strong>`;
+          tooltip.style.left = (e.clientX + 14) + 'px';
+          tooltip.style.top = (e.clientY - 10) + 'px';
+        });
+        chip.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+        textOutput.appendChild(chip);
+      });
+    }
+
+    input.addEventListener('input', update);
+    update();
+  </script>
+</body>
+</html>
